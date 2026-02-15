@@ -8,12 +8,6 @@ Workflow Diagram
 ![MCP Inspector](image.png)
 MCP Inspector
 
-![Get API](get.png)
-Get API results
-
-![Post API](post.png)
-Post API results
-
 ---
 
 ## ⚡ Quick Setup (5 Minutes)
