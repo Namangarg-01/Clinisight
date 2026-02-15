@@ -2,11 +2,8 @@
 
 AI-powered medical diagnosis API with symptom analysis, diagnosis suggestions, and PubMed research integration.
 
-![Workflow Diagram](Mcp_inspector.png)
+![Workflow Diagram](Workflow.png)
 Workflow Diagram
-
-![MCP Inspector](image.png)
-MCP Inspector
 
 ![MCP Inspector](image.png)
 MCP Inspector
@@ -14,7 +11,7 @@ MCP Inspector
 ![Get API](get.png)
 Get API results
 
-|[Post API](post.png)
+![Post API](post.png)
 Post API results
 
 ---
