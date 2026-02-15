@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 
 def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_empty=True):
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {"User-Agent": "Mozilla/5.0"} #Tp authenticate with the URL Header is needed 
 
     # Step 1: Search PubMed
     search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
