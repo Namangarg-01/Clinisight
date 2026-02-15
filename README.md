@@ -4,11 +4,11 @@ AI-powered medical diagnosis API with symptom analysis, diagnosis suggestions, a
 
 ![Workflow Diagram](Workflow.png)
 
-Workflow Diagram
+                                            Workflow Diagram
 
 ![MCP Inspector](image.png)
 
-MCP Inspector
+                                            MCP Inspector
 
 ---
 
