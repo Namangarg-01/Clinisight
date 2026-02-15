@@ -7,3 +7,4 @@ uvicorn
 groq
 asyncio
 fastapi
+mcp[cli]
