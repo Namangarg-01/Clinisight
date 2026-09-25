@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Secrets (API keys)
+.env
+.env.*
+.streamlit/secrets.toml

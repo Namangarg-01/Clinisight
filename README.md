@@ -47,6 +47,24 @@ python app.py
 
 ---
 
+## 🌐 Streamlit Demo
+
+A browser UI for the same pipeline lives in `demo/streamlit_app.py`: describe symptoms in plain language and it shows the extracted symptoms, possible conditions, matching PubMed articles and a research summary.
+
+### Run Locally
+```bash
+pip install -r demo/requirements.txt
+streamlit run demo/streamlit_app.py
+```
+
+### Deploy on Streamlit Community Cloud
+1. **Create app** → repo `Namangarg-01/Clinisight`, branch `master`, main file `demo/streamlit_app.py`
+2. **Advanced settings → Secrets**: `GROQ_API_KEY = "gsk_..."`
+
+`demo/requirements.txt` is kept separate on purpose: Community Cloud reads the dependency file next to the entrypoint first, so it skips the root `uv.lock` (which pins torch/transformers the app doesn't use).
+
+---
+
 ## 🔧 MCP Server Setup
 
 ### Install MCP Tools
@@ -206,6 +224,9 @@ clinisight/
 │   ├── diagnosis_symptoms.py     # AI diagnosis
 │   ├── pubmed_articles.py        # Fetch research
 │   └── summarize_pubmed.py       # Summarize papers
+├── demo/
+│   ├── streamlit_app.py          # Streamlit demo UI
+│   └── requirements.txt          # Demo dependencies (used by Streamlit Cloud)
 ├── app.py                         # FastAPI server
 ├── mcp_server.py                  # MCP server
 ├── .env                           # API key (create this)

@@ -22,11 +22,11 @@ async def Clinisight_ai(symptom_text):
 
     query = " ".join(symptoms)
     pubmeds_article = fetch_pubmed_articles_with_metadata(query) #getting list of dictionary
-    summary = await summarize_text(pubmeds_article[:3000])
+    summary = await summarize_text(str(pubmeds_article)[:3000])
 
     return {
         "symptoms" : symptoms,
-        "diagosis" : Diagnosis_results,
+        "diagnosis" : Diagnosis_results,
         "pubmed_summary" : summary
     }
 
