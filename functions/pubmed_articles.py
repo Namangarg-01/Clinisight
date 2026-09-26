@@ -1,9 +1,30 @@
+import re
+
 import requests
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# NCBI allows 3 requests/s without an API key and sometimes answers 429 or 5xx, so retry those with a backoff
+# (read timeouts are not retried, so a hanging NCBI doesn't multiply the wait)
+session = requests.Session()
+session.mount("https://", HTTPAdapter(max_retries=Retry(total=3, read=0, backoff_factor=1,
+                                                        status_forcelist=[429, 500, 502, 503, 504])))
+
 
 def symptoms_query(symptoms: list[str]) -> str:
     # Every symptom must appear in the title or abstract, e.g. "fever"[tiab] AND "cough"[tiab]
     return " AND ".join(f'"{s}"[tiab]' for s in symptoms)
+
+
+def conditions_query(conditions: list[str], symptoms: list[str]) -> str:
+    # Papers about a likely condition that mention any of the symptoms and have an abstract, e.g.
+    # ("influenza"[ti] OR "COVID-19"[ti]) AND ("fever"[tiab] OR "dry cough"[tiab]) AND hasabstract
+    # Searching symptoms alone mostly finds drug trials that list them as side effects.
+    names = [re.sub(r"\(.*?\)|[\"\[\]]", "", c).strip() for c in conditions]  # keep each name a valid phrase
+    title = " OR ".join(f'"{c}"[ti]' for c in names if c)
+    mention = " OR ".join(f'"{s}"[tiab]' for s in symptoms)
+    return f"({title}) AND ({mention}) AND hasabstract"
 
 
 def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_empty=True):
@@ -19,7 +40,7 @@ def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_e
         "sort": "relevance"
     }
     try:
-        search_response = requests.get(search_url, params=search_params, headers=headers, timeout=10).json()
+        search_response = session.get(search_url, params=search_params, headers=headers, timeout=10).json()
         id_list = search_response["esearchresult"]["idlist"]
         print("Found PubMed IDs:", id_list)
         if not id_list:
@@ -34,20 +55,22 @@ def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_e
             "id": ids,
             "retmode": "xml"
         }
-        fetch_response = requests.get(fetch_url, params=fetch_params, headers=headers, timeout=10)
+        fetch_response = session.get(fetch_url, params=fetch_params, headers=headers, timeout=10)
         soup = BeautifulSoup(fetch_response.text, "lxml")
-        articles_xml = soup.find_all("pubmedarticle")
+        # Book records (e.g. StatPearls chapters) come back as <PubmedBookArticle>, not <PubmedArticle>
+        articles_xml = soup.find_all(["pubmedarticle", "pubmedbookarticle"])
         print("Articles found in XML:", len(articles_xml))
 
         articles_info = []
-        for article, pmid in zip(articles_xml, id_list):
-            title_tag = article.find("articletitle")
+        for article in articles_xml:
+            pmid = article.find("pmid").get_text(strip=True)  # from the record itself, so links always match
+            title_tag = article.find("articletitle") or article.find("booktitle")
             abstract_tag = article.find("abstract")
             date_tag = article.find("pubdate")
             author_tags = article.find_all("author")
 
             # Title
-            title = title_tag.get_text(strip=True) if title_tag else "No title"
+            title = " ".join(title_tag.get_text().split()) if title_tag else "No title"  # keeps spaces around <i> tags
 
             # Abstract
             abstract = abstract_tag.get_text(separator=" ", strip=True) if abstract_tag else "No abstract available"

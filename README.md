@@ -70,7 +70,7 @@ streamlit run demo/streamlit_app.py
 ### Install MCP Tools
 ```bash
 # Install MCP dependencies
-pip install mcp fastmcp
+pip install "mcp[cli]>=1.26,<2"
 ```
 
 ### Run MCP Server

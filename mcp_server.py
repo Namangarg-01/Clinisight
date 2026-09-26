@@ -1,7 +1,9 @@
+import asyncio
+
 from mcp.server.fastmcp import FastMCP
 from functions.symptom_extractor import extract_symptoms
-from functions.diagnosis_symptoms import get_diagnosis
-from functions.pubmed_articles import fetch_pubmed_articles_with_metadata, symptoms_query
+from functions.diagnosis_symptoms import get_conditions, get_diagnosis
+from functions.pubmed_articles import conditions_query, fetch_pubmed_articles_with_metadata, symptoms_query
 from functions.summarize_pubmed import summarize_text
 
 
@@ -18,9 +20,9 @@ async def Clinisight_ai(symptom_text):
             "pubmed_summary": None
         }
     
-    Diagnosis_results = await get_diagnosis(symptoms)
+    Diagnosis_results, conditions = await asyncio.gather(get_diagnosis(symptoms), get_conditions(symptoms))
 
-    query = symptoms_query(symptoms)
+    query = conditions_query(conditions, symptoms) if conditions else symptoms_query(symptoms)
     pubmeds_article = fetch_pubmed_articles_with_metadata(query) #getting list of dictionary
     summary = await summarize_text(str(pubmeds_article)[:3000])
 

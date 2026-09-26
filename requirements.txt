@@ -7,4 +7,4 @@ uvicorn
 groq
 asyncio
 fastapi
-mcp[cli]
+mcp[cli]>=1.26,<2  # mcp_server.py uses the v1 FastMCP API (renamed in mcp 2.x)
