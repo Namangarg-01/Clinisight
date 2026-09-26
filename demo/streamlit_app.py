@@ -47,8 +47,8 @@ if any(p.exists() for p in (Path.home() / ".streamlit" / "secrets.toml", ROOT / 
 
 from functions.config import MODEL
 from functions.symptom_extractor import extract_symptoms
-from functions.diagnosis_symptoms import get_diagnosis
-from functions.pubmed_articles import fetch_pubmed_articles_with_metadata, symptoms_query
+from functions.diagnosis_symptoms import get_conditions, get_diagnosis
+from functions.pubmed_articles import conditions_query, fetch_pubmed_articles_with_metadata, symptoms_query
 from functions.summarize_pubmed import summarize_text
 
 st.set_page_config(page_title="Clinisight — Symptom Analysis & Research Assistant", layout="wide")
@@ -63,6 +63,11 @@ LLM_ERROR = "Error getting diagnosis:"  # prefix the functions return when a Gro
 
 def _use_example(text: str) -> None:
     st.session_state.description = text
+
+
+async def _diagnose(symptoms: list[str]):
+    """Free-text diagnosis and the top 3 conditions (used for the PubMed search), requested in parallel."""
+    return await asyncio.gather(get_diagnosis(symptoms), get_conditions(symptoms))
 
 
 def _pubmed(query: str) -> list[dict]:
@@ -113,9 +118,10 @@ with right:
         st.markdown(
             "1. **Symptom extraction:** the LLM reads your description and returns the symptoms as JSON "
             "(keyword matching is the fallback).\n"
-            "2. **Possible conditions:** the LLM suggests likely conditions for those symptoms.\n"
-            "3. **PubMed evidence:** the most relevant papers that mention every symptom are fetched live "
-            "from NCBI PubMed.\n"
+            "2. **Possible conditions:** the LLM suggests likely conditions for those symptoms and names "
+            "the top 3.\n"
+            "3. **PubMed evidence:** the most relevant papers on those conditions that mention your symptoms "
+            "are fetched live from NCBI PubMed.\n"
             "4. **Research summary:** the LLM summarizes the retrieved abstracts."
         )
     st.caption("Educational demo only, not medical advice. Always consult a healthcare professional.")
@@ -127,22 +133,29 @@ if analyze:
         st.warning("Describe the symptoms first.")
     else:
         start = time.perf_counter()
-        diagnosis = summary = None
-        articles = []
+        diagnosis = summary = query = None
+        conditions, articles = [], []
         with st.status("Analyzing...", expanded=False) as status:
             status.update(label="Extracting symptoms...")
             symptoms = extract_symptoms(text)
             if symptoms:
                 status.update(label="Finding possible conditions...")
-                diagnosis = asyncio.run(get_diagnosis(symptoms))
+                diagnosis, conditions = asyncio.run(_diagnose(symptoms))
                 status.update(label="Searching PubMed...")
-                articles = _pubmed(symptoms_query(symptoms)) or _pubmed(" OR ".join(symptoms))
+                # Papers on the likely conditions first; symptom-only searches are the fallback
+                searches = ([conditions_query(conditions, symptoms)] if conditions else []) + [
+                    symptoms_query(symptoms), " OR ".join(symptoms)]
+                for query in searches:
+                    articles = _pubmed(query)
+                    if articles:
+                        break
                 if articles:
                     status.update(label="Summarizing the research...")
                     research = "\n\n".join(f"{a['title']}\n{a['abstract']}" for a in articles)[:3000]
                     summary = asyncio.run(summarize_text(research))
             status.update(label="Done", state="complete")
-        st.session_state.result = {"symptoms": symptoms, "diagnosis": diagnosis, "articles": articles,
+        st.session_state.result = {"symptoms": symptoms, "diagnosis": diagnosis, "conditions": conditions,
+                                   "articles": articles, "query": query if articles else None,
                                    "summary": summary, "seconds": time.perf_counter() - start}
         st.rerun()  # refresh the KPI row with this run's numbers
 
@@ -157,12 +170,16 @@ if result:
             st.subheader("Symptoms detected")
             st.markdown(" ".join(f":blue-background[{s}]" for s in result["symptoms"]))
             st.subheader("Possible conditions")
+            if result.get("conditions"):  # .get: results saved before this field existed
+                st.markdown("Most likely: " + " ".join(f":orange-background[{c}]" for c in result["conditions"]))
             with st.container(border=True):
                 _show_llm_text(result["diagnosis"])
         with res_right:
             st.subheader("PubMed evidence")
             if not result["articles"]:
                 st.info("No PubMed articles found for these symptoms.")
+            elif result.get("query"):
+                st.caption(f"PubMed search: `{result['query']}`")
             for a in result["articles"]:
                 with st.container(border=True):
                     st.markdown(f"**[{a['title']}]({a['article_url']})**")
