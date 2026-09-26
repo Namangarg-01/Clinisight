@@ -1,10 +1,9 @@
 import os
 from groq import AsyncGroq
 from dotenv import load_dotenv
+from functions.config import MODEL as model
 
 load_dotenv()
-
-model = "llama-3.3-70b-versatile"
 
 
 async def summarize_text(text: str) -> str:

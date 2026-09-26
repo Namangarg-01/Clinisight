@@ -3,11 +3,10 @@ import os
 import re
 
 from dotenv import load_dotenv
+from functions.config import MODEL as model
 from groq import Groq
 
 load_dotenv()
-
-model = "llama-3.3-70b-versatile"
 
 # Keyword fallback, used only when the LLM call fails (e.g. no API key or network error)
 COMMON_SYMPTOMS = (r"\b(headache|fever|nausea|vomiting|fatigue|pain|cough|sore throat|dizziness|rash|"
