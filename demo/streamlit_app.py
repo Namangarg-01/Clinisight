@@ -25,7 +25,14 @@ from pathlib import Path
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))  # lets `functions` import from the repo root
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))  # lets `functions` import from the repo root
+
+# Streamlit only hot-reloads modules inside demo/. When Community Cloud pulls a new commit,
+# the old functions.* modules would stay cached and miss new code (e.g. "cannot import name
+# 'symptoms_query'"), so drop them and let every run import the current version.
+for _name in [m for m in sys.modules if m == "functions" or m.startswith("functions.")]:
+    del sys.modules[_name]
 
 # Copy the key from Streamlit secrets into the environment the functions read from.
 # Only touch st.secrets when a secrets.toml exists; otherwise Streamlit shows its own
