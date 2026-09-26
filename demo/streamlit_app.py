@@ -49,6 +49,7 @@ from functions.config import MODEL
 from functions.symptom_extractor import extract_symptoms
 from functions.diagnosis_symptoms import get_conditions, get_diagnosis
 from functions.pubmed_articles import conditions_query, fetch_pubmed_articles_with_metadata, symptoms_query
+from functions.reliability import CHECKS, assess
 from functions.summarize_pubmed import summarize_text
 
 st.set_page_config(page_title="Clinisight — Symptom Analysis & Research Assistant", layout="wide")
@@ -59,6 +60,8 @@ EXAMPLES = {
     "Allergy": "My nose keeps running, my eyes are itchy and I have a rash on my arms.",
 }
 LLM_ERROR = "Error getting diagnosis:"  # prefix the functions return when a Groq call fails
+BADGE = {"High": ":green-background[High]", "Medium": ":orange-background[Medium]",
+         "Moderate": ":orange-background[Moderate]", "Low": ":red-background[Low]"}
 
 
 def _use_example(text: str) -> None:
@@ -79,7 +82,24 @@ def _show_llm_text(text: str) -> None:
     if text.startswith(LLM_ERROR):
         st.error("The LLM request failed. " + text[len(LLM_ERROR):].strip())
     else:
-        st.markdown(text)
+        st.markdown(text.replace("$", r"\$"))  # "$2–$5 billion" would otherwise render as LaTeX math
+
+
+def _show_reliability(rel: dict) -> None:
+    st.subheader("How much to rely on this result")
+    with st.container(border=True):
+        st.markdown(f"**Overall reliability: {BADGE[rel['grade']]} {rel['score']} / 100.** {rel['advice']}")
+        # Three columns so the table still fits a phone screen; the explanations live in the expander
+        st.markdown("| Check | Result | Rating |\n|---|---|---|\n" + "\n".join(
+            f"| {c['check']} | {c['result']} | {BADGE[c['rating']]} |" for c in rel["checks"]))
+        with st.expander("What each check means and how the score is calculated"):
+            st.markdown("\n".join(
+                f"- **{name}** ({c['weight']:.0%} of the score): {c['why']} High: {c['rules'][0]}. "
+                f"Medium: {c['rules'][1]}. Low: {c['rules'][2]}." for name, c in CHECKS.items())
+                + "\n\nEach check is rated High (1 point), Medium (0.5) or Low (0). The overall score is the "
+                  "weighted average × 100: **High** from 75, **Moderate** from 50, **Low** below 50.")
+    st.caption("These rule-based checks rate consistency and evidence. They can't tell whether an answer is "
+               "medically correct; only a clinician can.")
 
 
 st.session_state.setdefault("description", EXAMPLES["Flu-like"])
@@ -99,7 +119,7 @@ k1.metric("Pipeline stages", "4")
 k2.metric("Symptoms found", len(result["symptoms"]) if result else "—")
 k3.metric("PubMed articles", len(result["articles"]) if result else "—")
 k4.metric("Analysis time", f"{result['seconds']:.1f} s" if result else "—")
-k5.metric("Evidence source", "PubMed")
+k5.metric("Reliability", result["reliability"]["grade"] if result and result.get("reliability") else "—")
 
 st.divider()
 
@@ -122,7 +142,9 @@ with right:
             "the top 3.\n"
             "3. **PubMed evidence:** the most relevant papers on those conditions that mention your symptoms "
             "are fetched live from NCBI PubMed.\n"
-            "4. **Research summary:** the LLM summarizes the retrieved abstracts."
+            "4. **Research summary:** the LLM summarizes the retrieved abstracts.\n\n"
+            "Every result then gets a **reliability rating** from six rule-based checks of the input, the model's "
+            "consistency and the evidence."
         )
     st.caption("Educational demo only, not medical advice. Always consult a healthcare professional.")
 
@@ -134,7 +156,7 @@ if analyze:
     else:
         start = time.perf_counter()
         diagnosis = summary = query = None
-        conditions, articles = [], []
+        conditions, articles, research = [], [], ""
         with st.status("Analyzing...", expanded=False) as status:
             status.update(label="Extracting symptoms...")
             symptoms = extract_symptoms(text)
@@ -154,9 +176,11 @@ if analyze:
                     research = "\n\n".join(f"{a['title']}\n{a['abstract']}" for a in articles)[:3000]
                     summary = asyncio.run(summarize_text(research))
             status.update(label="Done", state="complete")
+        reliability = assess(symptoms, conditions, diagnosis, articles, summary, research) if symptoms else None
         st.session_state.result = {"symptoms": symptoms, "diagnosis": diagnosis, "conditions": conditions,
                                    "articles": articles, "query": query if articles else None,
-                                   "summary": summary, "seconds": time.perf_counter() - start}
+                                   "summary": summary, "reliability": reliability,
+                                   "seconds": time.perf_counter() - start}
         st.rerun()  # refresh the KPI row with this run's numbers
 
 # ── Results ──────────────────────────────────────────────────────────────────
@@ -165,6 +189,8 @@ if result:
     if not result["symptoms"]:
         st.info("No symptoms detected. Try describing how you feel in a bit more detail.")
     else:
+        if result.get("reliability"):  # .get: results saved before this field existed
+            _show_reliability(result["reliability"])
         res_left, res_right = st.columns(2, gap="large")
         with res_left:
             st.subheader("Symptoms detected")

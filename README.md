@@ -49,7 +49,7 @@ python app.py
 
 ## 🌐 Streamlit Demo
 
-A browser UI for the same pipeline lives in `demo/streamlit_app.py`: describe symptoms in plain language and it shows the extracted symptoms, possible conditions, matching PubMed articles and a research summary.
+A browser UI for the same pipeline lives in `demo/streamlit_app.py`: describe symptoms in plain language and it shows the extracted symptoms, possible conditions, matching PubMed articles and a research summary, plus a reliability rating: six rule-based checks (symptom detail, model agreement, evidence coverage, strength and recency, summary grounding) that say how much to rely on the result.
 
 ### Run Locally
 ```bash
@@ -223,6 +223,7 @@ clinisight/
 │   ├── symptom_extractor.py      # Extract symptoms
 │   ├── diagnosis_symptoms.py     # AI diagnosis
 │   ├── pubmed_articles.py        # Fetch research
+│   ├── reliability.py            # Rate how much to rely on a result
 │   └── summarize_pubmed.py       # Summarize papers
 ├── demo/
 │   ├── streamlit_app.py          # Streamlit demo UI

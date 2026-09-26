@@ -88,7 +88,7 @@ def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_e
             authors = authors if authors else ["No authors listed"]
 
             # Publication Date
-            pub_date = "No date"
+            pub_date, pub_year = "No date", None
             if date_tag:
                 year = date_tag.find("year")
                 month = date_tag.find("month")
@@ -96,6 +96,10 @@ def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_e
                 if month and month.isdigit() and 1 <= int(month) <= 12:  # book records use "01", articles "Jan"
                     month = calendar.month_abbr[int(month)]
                 pub_date = f"{month} {year.get_text()}" if year and month else year.get_text() if year else "No date"
+                pub_year = int(year.get_text()) if year and year.get_text().isdigit() else None
+
+            # Study types, e.g. ["Journal Article", "Review"] or ["Study Guide"] for StatPearls chapters
+            publication_types = [t.get_text(strip=True) for t in article.find_all("publicationtype")]
 
             # PubMed Article URL
             url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
@@ -106,6 +110,8 @@ def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_e
                 "abstract": abstract,
                 "authors": authors,
                 "publication_date": pub_date,
+                "year": pub_year,
+                "publication_types": publication_types,
                 "article_url": url
             })
 
