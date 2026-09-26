@@ -1,3 +1,4 @@
+import calendar
 import re
 
 import requests
@@ -91,7 +92,10 @@ def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_e
             if date_tag:
                 year = date_tag.find("year")
                 month = date_tag.find("month")
-                pub_date = f"{month.get_text()} {year.get_text()}" if year and month else year.get_text() if year else "No date"
+                month = month.get_text() if month else None
+                if month and month.isdigit() and 1 <= int(month) <= 12:  # book records use "01", articles "Jan"
+                    month = calendar.month_abbr[int(month)]
+                pub_date = f"{month} {year.get_text()}" if year and month else year.get_text() if year else "No date"
 
             # PubMed Article URL
             url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/"
