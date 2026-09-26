@@ -1,6 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 
+def symptoms_query(symptoms: list[str]) -> str:
+    # Every symptom must appear in the title or abstract, e.g. "fever"[tiab] AND "cough"[tiab]
+    return " AND ".join(f'"{s}"[tiab]' for s in symptoms)
+
+
 def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_empty=True):
     headers = {"User-Agent": "Mozilla/5.0"} #Tp authenticate with the URL Header is needed 
 
@@ -10,7 +15,8 @@ def fetch_pubmed_articles_with_metadata(query: str, max_results=3, use_mock_if_e
         "db": "pubmed",
         "term": query,
         "retmax": max_results,
-        "retmode": "json"
+        "retmode": "json",
+        "sort": "relevance"
     }
     try:
         search_response = requests.get(search_url, params=search_params, headers=headers, timeout=10).json()

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from functions.symptom_extractor import extract_symptoms
 from functions.diagnosis_symptoms import get_diagnosis
-from functions.pubmed_articles import fetch_pubmed_articles_with_metadata
+from functions.pubmed_articles import fetch_pubmed_articles_with_metadata, symptoms_query
 from functions.summarize_pubmed import summarize_text
 
 app = FastAPI()
@@ -27,7 +27,7 @@ async def Diagnosis(data:SymptomInput):
     
     Diagnosis_results = await get_diagnosis(symptoms)
 
-    query = " ".join(symptoms)
+    query = symptoms_query(symptoms)
     pubmeds_article = fetch_pubmed_articles_with_metadata(query) #getting list of dictionary
     summary = await summarize_text(str(pubmeds_article)[:3000])
 
